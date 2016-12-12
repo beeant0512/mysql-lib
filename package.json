@@ -1,0 +1,32 @@
+{
+  "name": "mysql-lib",
+  "version": "1.0.0",
+  "description": "mysql library extens mysql",
+  "main": "mysqllib.js",
+  "dependencies":{
+    "mysql": "^2.12.0"
+  },
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/beeant0512/mysql-lib.git"
+  },
+  "engines": {
+    "node": ">= 0.8.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "nodejs",
+    "mysql"
+  ],
+  "author": "beeant",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/beeant0512/mysql-lib/issues"
+  },
+  "homepage": "https://github.com/beeant0512/mysql-lib#readme"
+}
