@@ -1,27 +1,110 @@
 var mysql = require("mysql");
+var extend = require('extend');
+
 var connection = null;
 var config = null;
+
 exports.createConnection = function (cfg) {
   connection = mysql.createConnection(cfg);
   config = cfg;
   return connection;
-}
+};
 
 exports.findOne = function (tableName, conditions, callback) {
 
-
+  var sb = [];
   if (typeof conditions == "function") {
     callback = conditions;
-  } else {
-    var sb = [];
-    sb.push(setSelect(conditions, tableName));
-    sb.push(setConditions(conditions));
+    conditions = {};
   }
 
-  console.log(sb.join(' '));
+  sb.push(setSelect(conditions, tableName));
+  sb.push(setConditions(conditions));
+  console.log('find one: ' + sb.join(' '));
+
+  return connection.query(sb.join(' '), function (err, rows, fields) {
+    if (rows.length > 1) {
+      throw 'more than one found';
+    }
+    callback.call(this, err, rows, fields);
+  });
+};
+
+exports.findAll = function (tableName, conditions, callback) {
+  var sb = [];
+  if (typeof conditions == "function") {
+    callback = conditions;
+    conditions = {};
+  }
+
+  sb.push(setSelect(conditions, tableName));
+  sb.push(setConditions(conditions));
+  if (conditions['orders'] && conditions['orders'].length > 0) {
+    var order = [];
+    order.push("select * from (");
+    order.push(sb.join(' '));
+    order.push(") temp_order");
+    order.push(setOrders(conditions));
+    sb = order;
+  }
+  sb.push(setPager(conditions));
+  console.log('find all: ' + sb.join(' '));
+
+  return connection.query(sb.join(' '), function (err, rows, fields) {
+    callback(err, rows, fields);
+  });
+};
+
+/**
+ *
+ * @param tableName
+ * @param object
+ * @param callback
+ * @returns
+ */
+exports.create = function (tableName, object, callback) {
+  var sb = [];
+  if (object === undefined || object == '') {
+    throw "the object must not be null";
+  }
+  sb.push("insert into");
+  sb.push(tableName);
+  sb.push("set");
+  sb.push(setCreate(object));
+  console.log('create : ' + sb.join(' '));
 
   return connection.query(sb.join(' '), callback);
-}
+};
+
+exports.delete = function (tableName, conditions, callback) {
+  var sb = [];
+  if (conditions === undefined || conditions == '') {
+    throw "the conditions must not be null";
+  }
+  sb.push("delete from");
+  sb.push(tableName);
+  conditions = {where: conditions};
+  sb.push(setConditions(conditions));
+  console.log('delete : ' + sb.join(' '));
+
+  return connection.query(sb.join(' '), callback);
+};
+
+exports.update = function (tableName, conditions, callback) {
+  var sb = [];
+  if (conditions === undefined || conditions == '') {
+    throw "the conditions must not be null";
+  }
+  sb.push("update");
+  sb.push(tableName);
+  sb.push("set");
+  sb.push(setCreate(conditions.values));
+  sb.push(setConditions(conditions));
+  console.log('updaet : ' + sb.join(' '));
+
+  return connection.query(sb.join(' '), callback);
+};
+
 /**
  * sql select fields
  *
@@ -53,7 +136,7 @@ function setSelect(conditions, tableName) {
   var sb = [];
   sb.push("select * from ");
   sb.push(tableName);
-  if (conditions['fields'] && conditions['fields'].length > 1) {
+  if (conditions['fields'] && conditions['fields'].length > 0) {
     sb = [];
     sb.push("select");
     for (var item in conditions['fields']) {
@@ -69,6 +152,7 @@ function setSelect(conditions, tableName) {
 
   return sb.join(' ');
 }
+
 /**
  * sql condtions
  * @param conditions
@@ -132,4 +216,77 @@ function setConditions(conditions) {
   }
 
   return sb.join(' ');
+}
+
+/**
+ *
+ * @param conditions
+ *
+ *  {
+ *    pager:{
+ *      page: 1,// by default
+ *      length: 10000, // by default
+ *    }
+ *  }
+ *
+ */
+function setPager(conditions) {
+  var sb = [];
+  if (conditions.pager && conditions.pager.length > 0) {
+    var pager = extend({page: 1, length: 10000}, conditions.pager);
+    sb.push("limit");
+    sb.push((pager.page - 1) * pager.length);
+    sb.push(",");
+    sb.push(pager.length);
+  }
+  return sb.join(" ");
+}
+
+/**
+ *
+ * @param conditions
+ * @returns {string}
+ */
+function setOrders(conditions) {
+  var sb = [];
+  if (conditions['orders'] && conditions['orders'].length > 0) {
+    sb.push("order by");
+    for (var item in conditions['orders']) {
+      var item = conditions['orders'][item];
+      item = extend({direction: 'asc'}, item);
+      if (item.field === undefined || item.field === '') {
+        throw "the order filed can not be null";
+        continue;
+      }
+      sb.push(item.field);
+      sb.push(item.direction);
+      sb.push(",")
+    }
+    sb.pop(sb.length - 1);
+  }
+
+  return sb.join(' ');
+}
+
+
+function setCreate(object) {
+  var sb = [];
+  for (var item in object) {
+    var value = object[item];
+    sb.push(item);
+    sb.push("=");
+    if (typeof value === 'object') {
+      if (value.func) {
+        sb.push(value.func);
+        sb.push("(");
+        sb.push('"' + value.value + '"');
+        sb.push(")");
+      }
+    } else {
+      sb.push('"' + value + '"');
+    }
+    sb.push(",");
+  }
+  sb.pop(sb.length - 1);
+  return sb.join(" ");
 }

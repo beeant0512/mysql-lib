@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "description": "mysql library extens mysql",
   "main": "mysqllib.js",
-  "dependencies":{
+  "dependencies": {
+    "extend": "^3.0.0",
     "mysql": "^2.12.0"
   },
   "scripts": {
-    "test": "test"
+    "test": "node test"
   },
   "repository": {
     "type": "git",
