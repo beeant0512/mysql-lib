@@ -5,6 +5,7 @@ var connection = null;
 var config = null;
 
 exports.createConnection = function (cfg) {
+  cfg = extend({multipleStatements: true}, cfg);
   connection = mysql.createConnection(cfg);
   config = cfg;
   return connection;
@@ -48,8 +49,10 @@ exports.findAll = function (tableName, conditions, callback) {
     sb = order;
   }
   sb.push(setPager(conditions));
+  if (conditions.pager && conditions.pager.length > 0) {
+    sb.push("; select found_rows() total;");
+  }
   console.log('find all: ' + sb.join(' '));
-
   return connection.query(sb.join(' '), function (err, rows, fields) {
     callback(err, rows, fields);
   });
@@ -134,11 +137,19 @@ exports.update = function (tableName, conditions, callback) {
  */
 function setSelect(conditions, tableName) {
   var sb = [];
-  sb.push("select * from ");
+  sb.push("select");
+  if (conditions.pager && conditions.pager.length > 0) {
+    sb.push("sql_calc_found_rows");
+  }
+  sb.push("* from");
   sb.push(tableName);
+
   if (conditions['fields'] && conditions['fields'].length > 0) {
     sb = [];
     sb.push("select");
+    if (conditions.pager && conditions.pager.length > 0) {
+      sb.push("sql_calc_found_rows");
+    }
     for (var item in conditions['fields']) {
       var item = conditions['fields'][item];
       sb.push(item.field);
