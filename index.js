@@ -42,16 +42,14 @@ exports.findAll = function (tableName, conditions, callback) {
   sb.push(setConditions(conditions));
   if (conditions['orders'] && conditions['orders'].length > 0) {
     var order = [];
-    order.push("select * from (");
-    order.push(sb.join(' '));
+    order.push("select sql_calc_found_rows * from (");
+    order.push(sb.join(' ').replace("sql_calc_found_rows",""));
     order.push(") temp_order");
     order.push(setOrders(conditions));
     sb = order;
   }
   sb.push(setPager(conditions));
-  if (conditions.pager && conditions.pager.length > 0) {
-    sb.push("; select found_rows() total;");
-  }
+  sb.push("; select found_rows() _total;");
   console.log('find all: ' + sb.join(' '));
   return connection.query(sb.join(' '), function (err, rows, fields) {
     callback(err, rows, fields);
@@ -138,7 +136,7 @@ exports.update = function (tableName, conditions, callback) {
 function setSelect(conditions, tableName) {
   var sb = [];
   sb.push("select");
-  if (conditions.pager && conditions.pager.length > 0) {
+  if (conditions.pager &&conditions.pager.length > 0) {
     sb.push("sql_calc_found_rows");
   }
   sb.push("* from");
@@ -237,6 +235,7 @@ function setConditions(conditions) {
  *    pager:{
  *      page: 1,// by default
  *      length: 10000, // by default
+ *      offset: 0, // by default
  *    }
  *  }
  *
@@ -246,7 +245,11 @@ function setPager(conditions) {
   if (conditions.pager && conditions.pager.length > 0) {
     var pager = extend({page: 1, length: 10000}, conditions.pager);
     sb.push("limit");
-    sb.push((pager.page - 1) * pager.length);
+    if (pager.offset != undefined) {
+      sb.push(pager.offset);
+    } else {
+      sb.push((pager.page - 1) * pager.length);
+    }
     sb.push(",");
     sb.push(pager.length);
   }
